@@ -14,18 +14,28 @@ def init_db():
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS scans (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ts TEXT NOT NULL,
-            barcode TEXT NOT NULL,
-            name TEXT,
-            calories REAL,
-            protein REAL,
-            carbs REAL,
-            fat REAL
-        )
-    """)
+            CREATE TABLE IF NOT EXISTS scans (
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 ts TEXT NOT NULL,
+                 barcode TEXT NOT NULL,
+                 name TEXT,
+                 calories REAL,
+                 protein REAL,
+                 carbs REAL,
+                 fat REAL,
+                 image_url TEXT
+            )
+            """)
     conn.commit()
+
+    # lightweight migration if scans table existed before image_url was added
+    try:
+        cur.execute("ALTER TABLE scans ADD COLUMN image_url TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        # column already exists
+        pass
+
     conn.close()
 
 app = Flask(__name__)
@@ -45,25 +55,24 @@ def add_scan():
 
     ts = datetime.utcnow().isoformat()
 
-    # Optional nutrition fields (you can fill these from your DB lookup)
     name = data.get("name")
     calories = data.get("calories")
     protein = data.get("protein")
     carbs = data.get("carbs")
     fat = data.get("fat")
+    image_url = data.get("image_url")
 
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO scans (ts, barcode, name, calories, protein, carbs, fat)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (ts, barcode, name, calories, protein, carbs, fat))
+                INSERT INTO scans (ts, barcode, name, calories, protein, carbs, fat, image_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (ts, barcode, name, calories, protein, carbs, fat, image_url))
     conn.commit()
     scan_id = cur.lastrowid
     conn.close()
 
     return jsonify({"ok": True, "id": scan_id, "ts": ts})
-
 @app.get("/api/scans")
 def list_scans():
     # optional: /api/scans?date=YYYY-MM-DD
