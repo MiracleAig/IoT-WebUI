@@ -1,3 +1,18 @@
+* {
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* IE / Edge legacy */
+}
+
+html, body {
+  overflow-x: hidden;
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
