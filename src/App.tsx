@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {
     AppBar,
     Toolbar,
@@ -18,6 +18,7 @@ import {
     IconButton,
     CssBaseline,
     Tooltip,
+    InputAdornment,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -31,6 +32,7 @@ import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import LocalDiningIcon from "@mui/icons-material/LocalDining";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import ClearIcon from "@mui/icons-material/Clear";
 
 type ScanRow = {
     id: number;
@@ -166,6 +168,7 @@ export default function App() {
 
     // ---- your existing state ----
     const [barcode, setBarcode] = useState("");
+    const barcodeInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState<string | null>(null);
 
@@ -187,6 +190,29 @@ export default function App() {
             window.removeEventListener("offline", off);
         };
     }, []);
+
+    useEffect(() => {
+        const es = new EventSource("/api/stream");
+
+        es.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.barcode) {
+                    setBarcode(data.barcode);
+                    barcodeInputRef.current?.focus();
+                }
+            } catch (err) {
+                console.error("Invalid scan event", err);
+            }
+        };
+
+        es.onerror = () => {
+            console.warn("Scan stream disconnected");
+        };
+
+        return () => es.close();
+    }, []);
+
 
     const canSubmit = useMemo(
         () => barcode.trim().length > 0 && !loading,
@@ -417,7 +443,7 @@ export default function App() {
                     <Box
                         sx={{
                             p: { xs: 2, md: 2.5 },
-                            borderRadius: 4,
+                            borderRadius: 2,
                             background: (t) =>
                                 t.palette.mode === "dark"
                                     ? "linear-gradient(135deg, rgba(108,99,255,0.22), rgba(0,212,255,0.10))"
@@ -487,14 +513,27 @@ export default function App() {
                                     alignItems="center"
                                 >
                                     <TextField
-                                        label="Enter barcode"
+                                        label="Barcode"
+                                        variant="outlined"
+                                        fullWidth
+                                        inputRef={barcodeInputRef}
                                         value={barcode}
                                         onChange={(e) => setBarcode(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") handleSubmit();
+                                        InputProps={{
+                                            endAdornment: barcode && (
+                                                <InputAdornment position="start">
+                                                    <IconButton
+                                                        aria-label="clear barcode"
+                                                        onClick={() => setBarcode("")}
+                                                        edge="end"
+                                                    >
+                                                        <ClearIcon />
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            ),
                                         }}
-                                        fullWidth
                                     />
+
 
                                     <Button
                                         size="large"
@@ -742,7 +781,7 @@ export default function App() {
                             </Grid>
 
                             {/* ACTIONS / EXPORT */}
-                            <Grid size={{ xs: 12, md: 4 }}>
+                            <Grid size={{ xs: 12, md: 4}}>
                                 <Card>
                                     <CardContent sx={{ p: 2.5 }}>
                                         <Stack spacing={1.5}>
@@ -793,7 +832,7 @@ export default function App() {
                                             <Box
                                                 sx={{
                                                     p: 1.5,
-                                                    borderRadius: 3,
+                                                    borderRadius: 1,
                                                     bgcolor: (t) =>
                                                         t.palette.mode === "dark"
                                                             ? "rgba(255,255,255,0.04)"
